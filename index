@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Photo avec quadrillage avancé</title>
+<style>
+    body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #121212;
+        color: #f0f0f0;
+    }
+
+    h2 {
+        text-align: center;
+        margin: 20px 0;
+        font-weight: 500;
+    }
+
+    /* Layout principal */
+    .app {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 40px;
+        padding: 20px;
+        flex-wrap: wrap;
+        flex-direction: row-reverse; /* <-- image à droite, sidebar à gauche */
+    }
+
+    /* Image */
+    #container {
+        position: relative;
+        background: #1a1a1a;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 0 25px rgba(0,0,0,0.6);
+    }
+
+    img {
+        max-width: 600px;
+        height: auto;
+        display: block;
+        border-radius: 8px;
+    }
+
+    #grid {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        cursor: grab;
+    }
+
+    #grid:active {
+        cursor: grabbing;
+    }
+
+    /* Sidebar réglages */
+    .sidebar {
+        width: 320px;
+        background: #1a1a1a;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    .controls {
+        margin-bottom: 18px;
+        text-align: left;
+    }
+
+    label {
+        font-size: 14px;
+        display: block;
+        margin-bottom: 6px;
+        color: #ccc;
+    }
+
+    input[type="range"] {
+        width: 100%;
+        accent-color: #4cafef;
+        cursor: pointer;
+    }
+
+    input[type="number"],
+    input[type="text"],
+    select,
+    input[type="color"] {
+        width: 100%;
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid #333;
+        background: #2a2a2a;
+        color: white;
+        margin-top: 5px;
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+        border-radius: 8px;
+        border: none;
+        background: linear-gradient(135deg, #4cafef, #0077ff);
+        color: white;
+        cursor: pointer;
+        transition: 0.2s;
+        margin-top: 15px;
+    }
+
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    }
+
+    span {
+        color: #4cafef;
+        font-weight: bold;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+        .app {
+            flex-direction: column; /* sidebar au dessus sur mobile */
+            align-items: center;
+        }
+
+        .sidebar {
+            width: 90%;
+        }
+
+        img {
+            max-width: 100%;
+        }
+    }
+</style>
+</head>
+<body>
+
+<h2>Photo avec quadrillage avancé</h2>
+
+<div class="app">
+
+    <!-- COLONNE IMAGE -->
+    <div id="container">
+        <img id="image">
+        <canvas id="grid"></canvas>
+    </div>
+
+    <!-- COLONNE RÉGLAGES -->
+    <div class="sidebar">
+
+        <div class="controls">
+            <label>Importer une image</label>
+            <input type="file" id="upload" accept="image/*">
+        </div>
+
+        <div class="controls">
+            <label>Taille des carrés</label>
+            <input type="range" id="gridSize" min="10" max="200" value="50">
+            <span id="sizeValue">50</span> px
+        </div>
+
+        <div class="controls">
+            <label>Opacité de la grille</label>
+            <input type="range" id="opacity" min="0.1" max="1" step="0.1" value="0.8">
+            <span id="opacityValue">0.8</span>
+        </div>
+
+        <div class="controls">
+            <label>Épaisseur des traits</label>
+            <input type="range" id="lineWidth" min="1" max="10" step="0.01" value="1">
+            <span id="lineWidthValue">1</span> px
+        </div>
+
+        <div class="controls">
+            <label>Ratio largeur / hauteur</label>
+            <input type="range" id="ratio" min="0.4" max="3" step="0.1" value="1">
+            <span id="ratioValue">1</span>
+        </div>
+
+        <div class="controls">
+            <label>Type de quadrillage</label>
+            <select id="gridType">
+                <option value="normal">Carré simple</option>
+                <option value="diagonal">Carré + diagonales</option>
+                <option value="checker">Damier léger</option>
+            </select>
+        </div>
+
+        <div class="controls">
+            <label>Couleur de la grille</label>
+            <input type="color" id="gridColor" value="#ff0000">
+        </div>
+
+        <div class="controls">
+            <label>Nom du fichier</label>
+            <input type="text" id="fileName" value="image_quadrillage">
+        </div>
+
+        <button id="downloadBtn">
+            Télécharger l'image avec quadrillage
+        </button>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+<script>
+// ===== ELEMENTS =====
+const upload = document.getElementById('upload');
+const image = document.getElementById('image');
+const canvas = document.getElementById('grid');
+const ctx = canvas.getContext('2d');
+
+const gridSizeInput = document.getElementById('gridSize');
+const sizeValue = document.getElementById('sizeValue');
+
+const opacityInput = document.getElementById('opacity');
+const opacityValue = document.getElementById('opacityValue');
+
+const gridTypeSelect = document.getElementById('gridType');
+const ratioInput = document.getElementById('ratio');
+const ratioValue = document.getElementById('ratioValue');
+
+const gridColorInput = document.getElementById('gridColor');
+const downloadBtn = document.getElementById('downloadBtn');
+
+const lineWidthInput = document.getElementById('lineWidth');
+const lineWidthValue = document.getElementById('lineWidthValue');
+
+let offsetX = 0;
+let offsetY = 0;
+let isDragging = false;
+let startX, startY;
+let scale = window.devicePixelRatio || 1;
+
+
+// ===== LOAD IMAGE =====
+upload.addEventListener('change', function(e) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        image.src = event.target.result;
+    }
+    reader.readAsDataURL(e.target.files[0]);
+});
+
+
+image.onload = function() {
+
+    const width = image.clientWidth;
+    const height = image.clientHeight;
+
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+
+    drawGrid();
+};
+
+
+// ===== CONTROLS =====
+gridSizeInput.addEventListener('input', () => {
+    sizeValue.textContent = gridSizeInput.value;
+    drawGrid();
+});
+
+opacityInput.addEventListener('input', () => {
+    opacityValue.textContent = opacityInput.value;
+    drawGrid();
+});
+
+ratioInput.addEventListener('input', () => {
+    ratioValue.textContent = ratioInput.value;
+    drawGrid();
+});
+
+gridTypeSelect.addEventListener('change', drawGrid);
+gridColorInput.addEventListener('input', drawGrid);
+
+lineWidthInput.addEventListener('input', () => {
+    lineWidthValue.textContent = lineWidthInput.value;
+    drawGrid();
+});
+
+
+// ===== DRAG GRID =====
+canvas.addEventListener('mousedown', function(e) {
+    if (e.button === 0) {
+        isDragging = true;
+        startX = e.offsetX;
+        startY = e.offsetY;
+    }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+
+    offsetX += e.offsetX - startX;
+    offsetY += e.offsetY - startY;
+
+    startX = e.offsetX;
+    startY = e.offsetY;
+
+    drawGrid();
+});
+
+canvas.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('mouseleave', () => isDragging = false);
+
+
+// ===== UTIL =====
+function hexToRGBA(hex, alpha) {
+    const r = parseInt(hex.substr(1,2),16);
+    const g = parseInt(hex.substr(3,2),16);
+    const b = parseInt(hex.substr(5,2),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+
+// ===== DRAW GRID =====
+function drawGrid() {
+
+    const size = parseInt(gridSizeInput.value);
+    const opacity = parseFloat(opacityInput.value);
+    const type = gridTypeSelect.value;
+    const ratio = parseFloat(ratioInput.value) || 1;
+    const color = gridColorInput.value;
+
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.strokeStyle = hexToRGBA(color, opacity);
+    ctx.fillStyle = hexToRGBA(color, opacity * 0.2);
+    ctx.lineWidth = parseFloat(lineWidthInput.value);
+
+
+    const rectW = size;
+    const rectH = size * ratio;
+
+    for (let x = offsetX % rectW; x <= width; x += rectW) {
+        for (let y = offsetY % rectH; y <= height; y += rectH) {
+
+            ctx.strokeRect(x, y, rectW, rectH);
+
+            if (type === "diagonal") {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + rectW, y + rectH);
+                ctx.moveTo(x + rectW, y);
+                ctx.lineTo(x, y + rectH);
+                ctx.stroke();
+            }
+
+            if (type === "cross") {
+                ctx.beginPath();
+                ctx.moveTo(x + rectW / 2, y);
+                ctx.lineTo(x + rectW / 2, y + rectH);
+                ctx.moveTo(x, y + rectH / 2);
+                ctx.lineTo(x + rectW, y + rectH / 2);
+                ctx.stroke();
+            }
+
+            if (type === "checker") {
+                if (((Math.floor((x - offsetX) / rectW) +
+                     Math.floor((y - offsetY) / rectH)) % 2) === 0) {
+                    ctx.fillRect(x, y, rectW, rectH);
+                }
+            }
+        }
+    }
+}
+
+
+// ===== EXPORT =====
+downloadBtn.addEventListener('click', function() {
+
+    const fileNameInput = document.getElementById('fileName');
+    let fileName = fileNameInput.value.trim() || "image_quadrillage";
+    fileName = fileName.replace(/[\\/:*?"<>|]/g, '');
+
+    const exportCanvas = document.createElement('canvas');
+    const exportCtx = exportCanvas.getContext('2d');
+
+    exportCanvas.width = image.naturalWidth;
+    exportCanvas.height = image.naturalHeight;
+
+    exportCtx.drawImage(image, 0, 0);
+
+    const size = parseInt(gridSizeInput.value);
+    const opacity = parseFloat(opacityInput.value);
+    const type = gridTypeSelect.value;
+    const ratio = parseFloat(ratioInput.value) || 1;
+    const color = gridColorInput.value;
+
+    const scaleX = exportCanvas.width / canvas.clientWidth;
+    const scaleY = exportCanvas.height / canvas.clientHeight;
+
+    const rectW = size * scaleX;
+    const rectH = size * ratio * scaleY;
+
+    const realOffsetX = offsetX * scaleX;
+    const realOffsetY = offsetY * scaleY;
+
+    exportCtx.strokeStyle = hexToRGBA(color, opacity);
+    exportCtx.fillStyle = hexToRGBA(color, opacity * 0.2);
+    exportCtx.lineWidth = parseFloat(lineWidthInput.value) * scaleX;
+
+    for (let x = realOffsetX % rectW; x <= exportCanvas.width; x += rectW) {
+        for (let y = realOffsetY % rectH; y <= exportCanvas.height; y += rectH) {
+
+            exportCtx.strokeRect(x, y, rectW, rectH);
+
+            if (type === "diagonal") {
+                exportCtx.beginPath();
+                exportCtx.moveTo(x, y);
+                exportCtx.lineTo(x + rectW, y + rectH);
+                exportCtx.moveTo(x + rectW, y);
+                exportCtx.lineTo(x, y + rectH);
+                exportCtx.stroke();
+            }
+
+            if (type === "cross") {
+                exportCtx.beginPath();
+                exportCtx.moveTo(x + rectW / 2, y);
+                exportCtx.lineTo(x + rectW / 2, y + rectH);
+                exportCtx.moveTo(x, y + rectH / 2);
+                exportCtx.lineTo(x + rectW, y + rectH / 2);
+                exportCtx.stroke();
+            }
+
+            if (type === "checker") {
+                if (((Math.floor((x - realOffsetX) / rectW) +
+                     Math.floor((y - realOffsetY) / rectH)) % 2) === 0) {
+                    exportCtx.fillRect(x, y, rectW, rectH);
+                }
+            }
+        }
+    }
+
+    const link = document.createElement('a');
+    link.download = fileName + ".png";
+    link.href = exportCanvas.toDataURL("image/png");
+    link.click();
+});
+</script>
+
+
+
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+(function (window, document) {
+    "use strict";
+
+    function initSmoothScroll(userOptions = {}) {
+        const config = {
+            MOBILE_BREAKPOINT: 768,
+            baseEase: 0.05,
+            maxEase: 0.5,
+            distanceFactor: 2500,
+            stopThreshold: 0.35,
+            scrollMult: 1,
+            minPageHeightRatio: 1.05,
+            offset: 0,
+            ...userOptions
+        };
+
+        const state = {
+            enabled: false,
+            running: false,
+            current: 0,
+            target: 0,
+            maxScroll: 0
+        };
+
+        const clamp = (v, min, max) => Math.max(min, Math.min(v, max));
+
+        /* ---------- Utils ---------- */
+
+        function updateMaxScroll() {
+            state.maxScroll =
+                document.documentElement.scrollHeight - window.innerHeight;
+        }
+
+        function isMobile() {
+            return window.innerWidth < config.MOBILE_BREAKPOINT;
+        }
+
+        function pageTooShort() {
+            return (
+                document.documentElement.scrollHeight <=
+                window.innerHeight * config.minPageHeightRatio
+            );
+        }
+
+        function setNativeScrollBehavior() {
+            const behavior = isMobile() ? "smooth" : "auto";
+            document.documentElement.style.scrollBehavior = behavior;
+            document.body.style.scrollBehavior = behavior;
+        }
+
+        /* ---------- Core ---------- */
+
+        function enable() {
+            if (state.enabled) return;
+
+            state.enabled = true;
+            updateMaxScroll();
+
+            state.current = state.target = window.scrollY;
+
+            window.addEventListener("wheel", onWheel, { passive: false });
+            window.addEventListener("scroll", syncScroll, { passive: true });
+        }
+
+        function disable() {
+            if (!state.enabled) return;
+
+            state.enabled = false;
+            state.running = false;
+
+            window.removeEventListener("wheel", onWheel);
+            window.removeEventListener("scroll", syncScroll);
+        }
+
+        function onWheel(e) {
+            if (e.ctrlKey) return;
+            e.preventDefault();
+
+            updateMaxScroll();
+
+            state.target = clamp(
+                state.target + e.deltaY * config.scrollMult,
+                0,
+                state.maxScroll
+            );
+
+            start();
+        }
+
+        function syncScroll() {
+            if (!state.running) {
+                state.current = state.target = window.scrollY;
+            }
+        }
+
+        function start() {
+            if (state.running) return;
+            state.running = true;
+            requestAnimationFrame(render);
+        }
+
+        function render() {
+            if (!state.enabled) return;
+
+            updateMaxScroll();
+            state.target = clamp(state.target, 0, state.maxScroll);
+
+            const diff = state.target - state.current;
+
+            if (Math.abs(diff) < config.stopThreshold) {
+                state.current = state.target;
+                window.scrollTo(0, state.current);
+                state.running = false;
+                return;
+            }
+
+            const ratio = Math.min(1, Math.abs(diff) / config.distanceFactor);
+            const ease =
+                config.baseEase +
+                (config.maxEase - config.baseEase) * ratio;
+
+            state.current += diff * ease;
+            window.scrollTo(0, state.current);
+
+            requestAnimationFrame(render);
+        }
+
+        /* ---------- Anchors ---------- */
+
+        function setupAnchors() {
+            if (isMobile()) return; // 🔑 laisse le CSS gérer les ancres
+
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener("click", e => {
+                    const targetEl = document.querySelector(
+                        anchor.getAttribute("href")
+                    );
+                    if (!targetEl) return;
+
+                    e.preventDefault();
+                    updateMaxScroll();
+
+                    state.current = state.target = window.scrollY;
+                    state.target =
+                        targetEl.getBoundingClientRect().top +
+                        window.scrollY +
+                        config.offset;
+
+                    state.target = clamp(state.target, 0, state.maxScroll);
+                    start();
+                });
+            });
+        }
+
+        /* ---------- State ---------- */
+
+        function checkState() {
+            if (isMobile() || pageTooShort()) {
+                disable();
+            } else {
+                enable();
+            }
+        }
+
+        /* ---------- Init ---------- */
+
+        setNativeScrollBehavior();
+        checkState();
+        setupAnchors();
+
+        let resizeTimer;
+        window.addEventListener("resize", () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                setNativeScrollBehavior();
+                updateMaxScroll();
+                checkState();
+            }, 120);
+        });
+    }
+
+    window.initSmoothScroll = initSmoothScroll;
+
+})(window, document);
+
+window.addEventListener("load", () => {
+    initSmoothScroll();
+});
+</script>
