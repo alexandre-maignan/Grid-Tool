@@ -156,7 +156,7 @@
 
         <div class="controls">
             <label>Taille des carrés</label>
-            <input type="range" id="gridSize" min="10" max="200" value="50">
+            <input type="range" id="gridSize" min="10" max="500" value="50">
             <span id="sizeValue">50</span> px
         </div>
 
@@ -183,9 +183,15 @@
             <select id="gridType">
                 <option value="normal">Carré simple</option>
                 <option value="diagonal">Carré + diagonales</option>
+                <option value="cross">Croix centrale</option>
                 <option value="checker">Damier léger</option>
+                <option value="horizontal">Lignes horizontales</option>
+                <option value="vertical">Lignes verticales</option>
+                <option value="verticalLine">Un trait vertical</option>
             </select>
         </div>
+
+
 
         <div class="controls">
             <label>Couleur de la grille</label>
@@ -213,6 +219,13 @@
 
 
 
+
+
+
+
+
+
+
 <script>
 // ===== ELEMENTS =====
 const upload = document.getElementById('upload');
@@ -226,22 +239,21 @@ const sizeValue = document.getElementById('sizeValue');
 const opacityInput = document.getElementById('opacity');
 const opacityValue = document.getElementById('opacityValue');
 
-const gridTypeSelect = document.getElementById('gridType');
+const lineWidthInput = document.getElementById('lineWidth');
+const lineWidthValue = document.getElementById('lineWidthValue');
+
 const ratioInput = document.getElementById('ratio');
 const ratioValue = document.getElementById('ratioValue');
 
+const gridTypeSelect = document.getElementById('gridType');
 const gridColorInput = document.getElementById('gridColor');
 const downloadBtn = document.getElementById('downloadBtn');
-
-const lineWidthInput = document.getElementById('lineWidth');
-const lineWidthValue = document.getElementById('lineWidthValue');
 
 let offsetX = 0;
 let offsetY = 0;
 let isDragging = false;
 let startX, startY;
 let scale = window.devicePixelRatio || 1;
-
 
 // ===== LOAD IMAGE =====
 upload.addEventListener('change', function(e) {
@@ -252,9 +264,7 @@ upload.addEventListener('change', function(e) {
     reader.readAsDataURL(e.target.files[0]);
 });
 
-
 image.onload = function() {
-
     const width = image.clientWidth;
     const height = image.clientHeight;
 
@@ -269,7 +279,6 @@ image.onload = function() {
     drawGrid();
 };
 
-
 // ===== CONTROLS =====
 gridSizeInput.addEventListener('input', () => {
     sizeValue.textContent = gridSizeInput.value;
@@ -281,6 +290,11 @@ opacityInput.addEventListener('input', () => {
     drawGrid();
 });
 
+lineWidthInput.addEventListener('input', () => {
+    lineWidthValue.textContent = lineWidthInput.value;
+    drawGrid();
+});
+
 ratioInput.addEventListener('input', () => {
     ratioValue.textContent = ratioInput.value;
     drawGrid();
@@ -288,12 +302,6 @@ ratioInput.addEventListener('input', () => {
 
 gridTypeSelect.addEventListener('change', drawGrid);
 gridColorInput.addEventListener('input', drawGrid);
-
-lineWidthInput.addEventListener('input', () => {
-    lineWidthValue.textContent = lineWidthInput.value;
-    drawGrid();
-});
-
 
 // ===== DRAG GRID =====
 canvas.addEventListener('mousedown', function(e) {
@@ -319,7 +327,6 @@ canvas.addEventListener('mousemove', function(e) {
 canvas.addEventListener('mouseup', () => isDragging = false);
 canvas.addEventListener('mouseleave', () => isDragging = false);
 
-
 // ===== UTIL =====
 function hexToRGBA(hex, alpha) {
     const r = parseInt(hex.substr(1,2),16);
@@ -328,15 +335,14 @@ function hexToRGBA(hex, alpha) {
     return `rgba(${r},${g},${b},${alpha})`;
 }
 
-
 // ===== DRAW GRID =====
 function drawGrid() {
-
     const size = parseInt(gridSizeInput.value);
     const opacity = parseFloat(opacityInput.value);
     const type = gridTypeSelect.value;
     const ratio = parseFloat(ratioInput.value) || 1;
     const color = gridColorInput.value;
+    const lineWidth = parseFloat(lineWidthInput.value) || 1;
 
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
@@ -345,49 +351,76 @@ function drawGrid() {
 
     ctx.strokeStyle = hexToRGBA(color, opacity);
     ctx.fillStyle = hexToRGBA(color, opacity * 0.2);
-    ctx.lineWidth = parseFloat(lineWidthInput.value);
-
+    ctx.lineWidth = lineWidth;
 
     const rectW = size;
     const rectH = size * ratio;
 
-    for (let x = offsetX % rectW; x <= width; x += rectW) {
-        for (let y = offsetY % rectH; y <= height; y += rectH) {
+    // Grille carrée, diagonale, croix, damier
+    if (['normal','diagonal','cross','checker'].includes(type)) {
+        for (let x = offsetX % rectW; x <= width; x += rectW) {
+            for (let y = offsetY % rectH; y <= height; y += rectH) {
+                if(type!=='checker') ctx.strokeRect(x, y, rectW, rectH);
 
-            ctx.strokeRect(x, y, rectW, rectH);
+                if (type === "diagonal") {
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + rectW, y + rectH);
+                    ctx.moveTo(x + rectW, y);
+                    ctx.lineTo(x, y + rectH);
+                    ctx.stroke();
+                }
 
-            if (type === "diagonal") {
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x + rectW, y + rectH);
-                ctx.moveTo(x + rectW, y);
-                ctx.lineTo(x, y + rectH);
-                ctx.stroke();
-            }
+                if (type === "cross") {
+                    ctx.beginPath();
+                    ctx.moveTo(x + rectW / 2, y);
+                    ctx.lineTo(x + rectW / 2, y + rectH);
+                    ctx.moveTo(x, y + rectH / 2);
+                    ctx.lineTo(x + rectW, y + rectH / 2);
+                    ctx.stroke();
+                }
 
-            if (type === "cross") {
-                ctx.beginPath();
-                ctx.moveTo(x + rectW / 2, y);
-                ctx.lineTo(x + rectW / 2, y + rectH);
-                ctx.moveTo(x, y + rectH / 2);
-                ctx.lineTo(x + rectW, y + rectH / 2);
-                ctx.stroke();
-            }
-
-            if (type === "checker") {
-                if (((Math.floor((x - offsetX) / rectW) +
-                     Math.floor((y - offsetY) / rectH)) % 2) === 0) {
-                    ctx.fillRect(x, y, rectW, rectH);
+                if (type === "checker") {
+                    if (((Math.floor((x - offsetX) / rectW) +
+                        Math.floor((y - offsetY) / rectH)) % 2) === 0) {
+                        ctx.fillRect(x, y, rectW, rectH);
+                    }
                 }
             }
         }
     }
-}
 
+    // Grille horizontale
+    if(type==='horizontal') {
+        for(let y = offsetY % rectH; y <= height; y += rectH) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+    }
+
+    // Grille verticale
+    if(type==='vertical') {
+        for(let x = offsetX % rectW; x <= width; x += rectW) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+    }
+
+    // Trait vertical unique (déplaçable)
+    if(type==='verticalLine') {
+        ctx.beginPath();
+        ctx.moveTo(width/2 + offsetX, 0);
+        ctx.lineTo(width/2 + offsetX, height);
+        ctx.stroke();
+    }
+}
 
 // ===== EXPORT =====
 downloadBtn.addEventListener('click', function() {
-
     const fileNameInput = document.getElementById('fileName');
     let fileName = fileNameInput.value.trim() || "image_quadrillage";
     fileName = fileName.replace(/[\\/:*?"<>|]/g, '');
@@ -398,57 +431,83 @@ downloadBtn.addEventListener('click', function() {
     exportCanvas.width = image.naturalWidth;
     exportCanvas.height = image.naturalHeight;
 
-    exportCtx.drawImage(image, 0, 0);
+    exportCtx.drawImage(image, 0, 0, exportCanvas.width, exportCanvas.height);
 
     const size = parseInt(gridSizeInput.value);
     const opacity = parseFloat(opacityInput.value);
     const type = gridTypeSelect.value;
     const ratio = parseFloat(ratioInput.value) || 1;
     const color = gridColorInput.value;
+    const lineWidth = parseFloat(lineWidthInput.value) || 1;
 
     const scaleX = exportCanvas.width / canvas.clientWidth;
     const scaleY = exportCanvas.height / canvas.clientHeight;
 
     const rectW = size * scaleX;
     const rectH = size * ratio * scaleY;
-
     const realOffsetX = offsetX * scaleX;
     const realOffsetY = offsetY * scaleY;
 
     exportCtx.strokeStyle = hexToRGBA(color, opacity);
     exportCtx.fillStyle = hexToRGBA(color, opacity * 0.2);
-    exportCtx.lineWidth = parseFloat(lineWidthInput.value) * scaleX;
+    exportCtx.lineWidth = lineWidth * scaleX;
 
-    for (let x = realOffsetX % rectW; x <= exportCanvas.width; x += rectW) {
-        for (let y = realOffsetY % rectH; y <= exportCanvas.height; y += rectH) {
+    if (['normal','diagonal','cross','checker'].includes(type)) {
+        for (let x = realOffsetX % rectW; x <= exportCanvas.width; x += rectW) {
+            for (let y = realOffsetY % rectH; y <= exportCanvas.height; y += rectH) {
+                if(type!=='checker') exportCtx.strokeRect(x, y, rectW, rectH);
 
-            exportCtx.strokeRect(x, y, rectW, rectH);
+                if(type==='diagonal'){
+                    exportCtx.beginPath();
+                    exportCtx.moveTo(x, y);
+                    exportCtx.lineTo(x+rectW, y+rectH);
+                    exportCtx.moveTo(x+rectW, y);
+                    exportCtx.lineTo(x, y+rectH);
+                    exportCtx.stroke();
+                }
 
-            if (type === "diagonal") {
-                exportCtx.beginPath();
-                exportCtx.moveTo(x, y);
-                exportCtx.lineTo(x + rectW, y + rectH);
-                exportCtx.moveTo(x + rectW, y);
-                exportCtx.lineTo(x, y + rectH);
-                exportCtx.stroke();
-            }
+                if(type==='cross'){
+                    exportCtx.beginPath();
+                    exportCtx.moveTo(x+rectW/2, y);
+                    exportCtx.lineTo(x+rectW/2, y+rectH);
+                    exportCtx.moveTo(x, y+rectH/2);
+                    exportCtx.lineTo(x+rectW, y+rectH/2);
+                    exportCtx.stroke();
+                }
 
-            if (type === "cross") {
-                exportCtx.beginPath();
-                exportCtx.moveTo(x + rectW / 2, y);
-                exportCtx.lineTo(x + rectW / 2, y + rectH);
-                exportCtx.moveTo(x, y + rectH / 2);
-                exportCtx.lineTo(x + rectW, y + rectH / 2);
-                exportCtx.stroke();
-            }
-
-            if (type === "checker") {
-                if (((Math.floor((x - realOffsetX) / rectW) +
-                     Math.floor((y - realOffsetY) / rectH)) % 2) === 0) {
-                    exportCtx.fillRect(x, y, rectW, rectH);
+                if(type==='checker'){
+                    if (((Math.floor((x - realOffsetX) / rectW) +
+                         Math.floor((y - realOffsetY) / rectH)) % 2) === 0) {
+                        exportCtx.fillRect(x, y, rectW, rectH);
+                    }
                 }
             }
         }
+    }
+
+    if(type==='horizontal'){
+        for(let y = realOffsetY % rectH; y <= exportCanvas.height; y += rectH){
+            exportCtx.beginPath();
+            exportCtx.moveTo(0, y);
+            exportCtx.lineTo(exportCanvas.width, y);
+            exportCtx.stroke();
+        }
+    }
+
+    if(type==='vertical'){
+        for(let x = realOffsetX % rectW; x <= exportCanvas.width; x += rectW){
+            exportCtx.beginPath();
+            exportCtx.moveTo(x,0);
+            exportCtx.lineTo(x, exportCanvas.height);
+            exportCtx.stroke();
+        }
+    }
+
+    if(type==='verticalLine'){
+        exportCtx.beginPath();
+        exportCtx.moveTo(exportCanvas.width/2 + realOffsetX, 0);
+        exportCtx.lineTo(exportCanvas.width/2 + realOffsetX, exportCanvas.height);
+        exportCtx.stroke();
     }
 
     const link = document.createElement('a');
@@ -460,36 +519,5 @@ downloadBtn.addEventListener('click', function() {
 
 
 
-
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
